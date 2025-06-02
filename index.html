@@ -1,0 +1,410 @@
+<!DOCTYPE html>                                                                                                                        
+<html lang="en">                                                                                                                       
+<head>                                                                                                                                 
+    <meta charset="UTF-8">                                                                                                             
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">                                                             
+    <title>Golkeh Teste</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden; /* Prevent body scroll, content will scroll */
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1a202c; /* dark gray */
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #4a5568; /* medium gray */
+            border-radius: 20px;
+            border: 2px solid #1a202c;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: #6b7280; /* lighter gray on hover */
+        }
+        /* Custom aspect ratio for 9:16 (height is 16/9 of width) - used for home page thumbnails */
+        .aspect-ratio-9-16 {
+            padding-bottom: 177.77%; /* (16 / 9) * 100% */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-screen w-screen flex flex-col">
+
+    <div id="main-content" class="flex-grow overflow-y-auto custom-scrollbar pt-4 pb-16">
+        </div>
+
+    <div class="fixed bottom-0 left-0 right-0 bg-gray-900 bg-opacity-90 backdrop-blur-sm z-20 shadow-lg border-t border-gray-800">
+        <nav class="flex justify-around items-center h-16 max-w-full mx-auto">
+            <button id="nav-home" class="nav-item flex flex-col items-center justify-center p-2 rounded-lg transition-colors duration-200 text-white">
+                <i data-lucide="home" class="w-6 h-6"></i>
+                <span class="text-xs mt-1">Home</span>
+            </button>
+            <button id="nav-search" class="nav-item flex flex-col items-center justify-center p-2 rounded-lg transition-colors duration-200 text-gray-400 hover:text-white">
+                <i data-lucide="search" class="w-6 h-6"></i>
+                <span class="text-xs mt-1">Search</span>
+            </button>
+            <button id="nav-categories" class="nav-item flex flex-col items-center justify-center p-2 rounded-lg transition-colors duration-200 text-gray-400 hover:text-white">
+                <i data-lucide="layout-grid" class="w-6 h-6"></i>
+                <span class="text-xs mt-1">Categories</span>
+            </button>
+            <button id="nav-premium" class="nav-item flex flex-col items-center justify-center p-2 rounded-lg transition-colors duration-200 text-gray-400 hover:text-white">
+                <i data-lucide="crown" class="w-6 h-6"></i>
+                <span class="text-xs mt-1">Premium</span>
+            </button>
+            <button id="nav-settings" class="nav-item flex flex-col items-center justify-center p-2 rounded-lg transition-colors duration-200 text-gray-400 hover:text-white">
+                <i data-lucide="user" class="w-6 h-6"></i>
+                <span class="text-xs mt-1">Settings</span>
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        let contentData = []; // Deklarasikan sebagai array kosong, akan diisi dari fetch
+        const mainContent = document.getElementById('main-content');
+        const navItems = document.querySelectorAll('.nav-item');
+
+        let activeTab = 'home'; // Default active tab
+        let currentPage = 1; // Current page for home content
+        const itemsPerPage = 8; // Number of items to display per page
+        let selectedContentId = null; // Stores the ID of the selected content for single view
+
+        let searchQuery = ''; // State for search input
+        let searchResults = []; // State for search results
+
+        // Function to update pagination button states (disabled/enabled)
+        function updatePaginationButtons() {
+            const prevButton = document.getElementById('prev-page');
+            const nextButton = document.getElementById('next-page');
+            const totalItems = contentData.length; // Total number of content items available
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+            if (prevButton) {
+                prevButton.disabled = currentPage === 1;
+                prevButton.classList.toggle('opacity-50', currentPage === 1);
+                prevButton.classList.toggle('cursor-not-allowed', currentPage === 1);
+            }
+            if (nextButton) {
+                nextButton.disabled = currentPage === totalPages;
+                nextButton.classList.toggle('opacity-50', currentPage === totalPages);
+                nextButton.classList.toggle('cursor-not-allowed', currentPage === totalPages);
+            }
+        }
+
+        // Function to handle page change for home content
+        function changePage(direction) {
+            const totalItems = contentData.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+            if (direction === 'next' && currentPage < totalPages) {
+                currentPage++;
+            } else if (direction === 'prev' && currentPage > 1) {
+                currentPage--;
+            }
+            renderContent(); // Re-render home content for the new page
+        }
+
+        // Function to perform search
+        function performSearch() {
+            const searchInput = document.getElementById('search-input');
+            searchQuery = searchInput ? searchInput.value.toLowerCase() : '';
+
+            if (searchQuery) {
+                searchResults = contentData.filter(item =>
+                    item.title.toLowerCase().includes(searchQuery)
+                );
+            } else {
+                searchResults = []; // Clear results if search query is empty
+            }
+            renderContent(); // Re-render to show search results
+        }
+
+        // Function to render content based on the active tab or selected content
+        function renderContent() {
+            let contentHtml = '';
+
+            if (selectedContentId !== null) {
+                // Find the selected content data
+                const content = contentData.find(item => item.id === selectedContentId);
+
+                if (content) {
+                    // Update document title
+                    document.title = content.title;
+
+                    // Render single content view
+                    contentHtml = `
+                        <div class="p-4 pt-4 pb-4 flex flex-col h-full">
+                            <button id="back-to-home" class="self-start mb-4 bg-gray-800 hover:bg-gray-700 text-white font-bold py-1 px-3 rounded-full transition-colors flex items-center text-sm">
+                                <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Back
+                            </button>
+                            <div class="relative w-full pb-[75%] overflow-hidden rounded-lg shadow-lg mb-4">
+                                <iframe
+                                    src="${content.embed_url}"
+                                    frameborder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowfullscreen
+                                    class="absolute top-0 left-0 w-full h-full"
+                                ></iframe>
+                            </div>
+                            <div class="bg-gray-800 rounded-lg p-4 shadow-lg flex-grow overflow-y-auto custom-scrollbar">
+                                <h2 class="text-xl font-bold text-white mb-2">${content.title}</h2>
+                                <p class="text-gray-400 text-sm leading-relaxed">
+                                    ${content.info}
+                                </p>
+                                <div class="mt-4 text-gray-500 text-xs flex items-center">
+                                    <span class="mr-4">Views: ${content.fake_views}</span>
+                                    <span class="mr-4">Likes: ${content.likes}</span>
+                                    <span>Category: ${content.category}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    // Attach event listener for back button
+                    setTimeout(() => { // Use setTimeout to ensure button is in DOM
+                        const backButton = document.getElementById('back-to-home');
+                        if (backButton) {
+                            backButton.addEventListener('click', () => {
+                                selectedContentId = null; // Clear selected content
+                                activeTab = 'home'; // Explicitly set activeTab to home
+                                renderContent(); // Re-render to home page
+                                updateNavActiveState(activeTab); // Update bottom bar
+                            });
+                        }
+                    }, 0);
+                } else {
+                    // Handle case where content is not found (e.g., show an error message)
+                    contentHtml = `<div class="flex flex-col items-center justify-center h-full p-4 text-white text-center">Content not found.</div>`;
+                    document.title = 'Telegram Mini App'; // Reset title
+                }
+
+            } else {
+                // Reset document title when on main tabs
+                document.title = 'Telegram Mini App';
+
+                // Render based on activeTab
+                switch (activeTab) {
+                    case 'home':
+                        const startIndex = (currentPage - 1) * itemsPerPage;
+                        const endIndex = startIndex + itemsPerPage;
+                        const displayedItems = contentData.slice(startIndex, endIndex);
+
+                        contentHtml = `
+                            <div class="p-4 pt-4 pb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 overflow-y-auto">
+                                ${displayedItems.map(item => `
+                                    <div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden transform transition-transform duration-300 hover:scale-105 cursor-pointer" onclick="showSingleContent(${item.id})">
+                                        <div class="relative w-full aspect-ratio-9-16">
+                                            <img
+                                                src="${item.thumbnail_url}"
+                                                alt="${item.title}"
+                                                class="absolute inset-0 w-full h-full object-cover rounded-t-lg"
+                                                onerror="this.onerror=null;this.src='https://placehold.co/300x533/1a202c/ffffff?text=Error';"
+                                            />
+                                            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2 rounded-b-lg">
+                                                <h3 class="text-white text-sm font-semibold truncate">${item.title}</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="flex justify-center items-center mt-4 mb-4 gap-4">
+                                <button id="prev-page" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+                                <span class="text-white">Page ${currentPage} / ${Math.ceil(contentData.length / itemsPerPage)}</span>
+                                <button id="next-page" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+                            </div>
+                        `;
+                        // Attach event listeners for pagination buttons only if on home tab
+                        setTimeout(() => { // Use setTimeout to ensure buttons are in DOM
+                            const prevButton = document.getElementById('prev-page');
+                            const nextButton = document.getElementById('next-page');
+                            if (prevButton) prevButton.addEventListener('click', () => changePage('prev'));
+                            if (nextButton) nextButton.addEventListener('click', () => changePage('next'));
+                            updatePaginationButtons(); // Initial state for buttons
+                        }, 0);
+                        break;
+                    case 'search':
+                        contentHtml = `
+                            <div class="flex flex-col items-center h-full p-4 pt-4 pb-4 text-white text-center">
+                                <i data-lucide="search" class="w-16 h-16 text-purple-400 mb-4"></i>
+                                <h2 class="text-2xl font-bold mb-4">Find Your Content</h2>
+                                <div class="flex items-center w-full max-w-md mx-auto mb-6">
+                                    <input type="text" id="search-input" placeholder="Search content by title..." value="${searchQuery}" class="flex-grow bg-gray-800 text-white placeholder-gray-400 rounded-full py-3 px-5 focus:outline-none focus:ring-2 focus:ring-purple-500 border border-gray-700 text-lg">
+                                    <button id="search-button" class="ml-3 bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full transition-colors shadow-md">
+                                        <i data-lucide="search" class="w-6 h-6"></i>
+                                    </button>
+                                </div>
+                                <div id="search-results-container" class="w-full flex-grow overflow-y-auto custom-scrollbar">
+                        `;
+                        if (searchResults.length > 0) {
+                            contentHtml += `
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                        ${searchResults.map(item => `
+                                            <div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden transform transition-transform duration-300 hover:scale-105 cursor-pointer" onclick="showSingleContent(${item.id})">
+                                                <div class="relative w-full aspect-ratio-9-16">
+                                                    <img
+                                                        src="${item.thumbnail_url}"
+                                                        alt="${item.title}"
+                                                        class="absolute inset-0 w-full h-full object-cover rounded-t-lg"
+                                                        onerror="this.onerror=null;this.src='https://placehold.co/300x533/1a202c/ffffff?text=Error';"
+                                                    />
+                                                    <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2 rounded-b-lg">
+                                                        <h3 class="text-white text-sm font-semibold truncate">${item.title}</h3>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                            `;
+                        } else if (searchQuery) {
+                            contentHtml += `<p class="text-gray-400 text-lg mt-8">No results found for "${searchQuery}".</p>`;
+                        } else {
+                            contentHtml += `<p class="text-gray-400 text-lg mt-8">Start typing to search for content.</p>`;
+                        }
+                        contentHtml += `
+                                </div>
+                            </div>
+                        `;
+                        // Attach event listeners for search input and button
+                        setTimeout(() => {
+                            const searchButton = document.getElementById('search-button');
+                            const searchInput = document.getElementById('search-input');
+                            if (searchButton) {
+                                searchButton.addEventListener('click', performSearch);
+                            }
+                            if (searchInput) {
+                                searchInput.addEventListener('keypress', (e) => {
+                                    if (e.key === 'Enter') {
+                                        performSearch();
+                                    }
+                                });
+                            }
+                        }, 0);
+                        break;
+                    case 'categories':
+                        const uniqueCategories = [...new Set(contentData.map(item => item.category))].sort();
+                        contentHtml = `
+                            <div class="flex flex-col items-center justify-center h-full p-4 pt-20 pb-20 text-white text-center">
+                                <i data-lucide="layout-grid" class="w-16 h-16 text-purple-400 mb-4"></i>
+                                <h2 class="text-2xl font-bold mb-2">Explore Categories</h2>
+                                <p class="text-gray-400">Discover content by genre, topic, and more.</p>
+                                <div class="mt-6 w-full max-w-md grid grid-cols-2 gap-4">
+                                    ${uniqueCategories.map(category => `
+                                        <div class="bg-gray-800 p-4 rounded-lg text-center text-white text-sm font-medium cursor-pointer hover:bg-gray-700 transition-colors">
+                                            ${category}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'premium':
+                        contentHtml = `
+                            <div class="flex flex-col items-center justify-center h-full p-4 pt-20 pb-20 text-white text-center">
+                                <i data-lucide="crown" class="w-16 h-16 text-yellow-400 mb-4"></i>
+                                <h2 class="text-2xl font-bold mb-2">Go Premium!</h2>
+                                <p class="text-gray-400 max-w-md">Unlock exclusive content, ad-free viewing, and high-quality streams. Elevate your experience today!</p>
+                                <button class="mt-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform transition-transform duration-200 hover:scale-105">
+                                    Upgrade Now
+                                </button>
+                            </div>
+                        `;
+                        break;
+                    case 'user-settings':
+                        contentHtml = `
+                            <div class="flex flex-col items-center justify-center h-full p-4 pt-20 pb-20 text-white text-center">
+                                <i data-lucide="user" class="w-16 h-16 text-blue-400 mb-4"></i>
+                                <h2 class="text-2xl font-bold mb-2">User Settings</h2>
+                                <p class="text-gray-400 max-w-md">Manage your profile, preferences, and account details here.</p>
+                                <div class="mt-6 w-full max-w-sm bg-gray-800 rounded-lg p-6 shadow-lg">
+                                    <div class="mb-4 text-left">
+                                        <label for="username" class="block text-gray-300 text-sm font-bold mb-2">Username</label>
+                                        <input
+                                            type="text"
+                                            id="username"
+                                            value="JohnDoe"
+                                            class="shadow appearance-none border border-gray-700 rounded w-full py-2 px-3 text-gray-200 leading-tight focus:outline-none focus:shadow-outline bg-gray-900"
+                                        />
+                                    </div>
+                                    <div class="mb-6 text-left">
+                                        <label for="email" class="block text-gray-300 text-sm font-bold mb-2">Email</label>
+                                        <input
+                                            type="email"
+                                            id="email"
+                                            value="john.doe@example.com"
+                                            class="shadow appearance-none border border-gray-700 rounded w-full py-2 px-3 text-gray-200 leading-tight focus:outline-none focus:shadow-outline bg-gray-900"
+                                        />
+                                    </div>
+                                    <button class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full focus:outline-none focus:shadow-outline transition-colors">
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                }
+            }
+
+            mainContent.innerHTML = contentHtml;
+            lucide.createIcons();
+        }
+
+        // New function to show single content
+        function showSingleContent(contentId) {
+            selectedContentId = contentId;
+            renderContent();
+            // No need to update nav active state as we are not changing the bottom bar tab
+        }
+
+        // Function to update active navigation item styling
+        function updateNavActiveState(selectedTab) {
+            navItems.forEach(item => {
+                const itemId = item.id.replace('nav-', '');
+                if (itemId === selectedTab) {
+                    item.classList.remove('text-gray-400', 'hover:text-white');
+                    item.classList.add('text-white');
+                } else {
+                    item.classList.remove('text-white');
+                    item.classList.add('text-gray-400', 'hover:text-white');
+                }
+            });
+        }
+
+        // Event listeners for navigation buttons
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const tabName = item.id.replace('nav-', '');
+                activeTab = tabName;
+                selectedContentId = null; // Reset selected content when navigating via bottom bar
+                if (activeTab === 'home') {
+                    currentPage = 1; // Reset to first page when navigating to home
+                }
+                // Reset search-related states when changing tabs
+                searchQuery = '';
+                searchResults = [];
+                renderContent(); // Call renderContent without tab argument
+                updateNavActiveState(activeTab);
+            });
+        });
+
+        // Initial fetch of content data and render
+        window.onload = async () => {
+            try {
+                const response = await fetch('content.json'); // Mengambil data dari file content.json
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                contentData = await response.json();
+                renderContent(); // Render default content (home) setelah data dimuat
+                updateNavActiveState(activeTab); // Set initial active state
+                lucide.createIcons(); // Initialize Lucide icons on load
+            } catch (error) {
+                console.error("Could not fetch content data:", error);
+                mainContent.innerHTML = `<div class="flex flex-col items-center justify-center h-full p-4 text-red-500 text-center">Failed to load content. Please check 'content.json'.</div>`;
+            }
+        };
+    </script>
+</body>
+</html>
